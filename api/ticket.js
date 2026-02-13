@@ -18,7 +18,9 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // 3) Fuente
+    // 3) (Clave) Forzar fontconfig a usar fuentes del proyecto
+    //    Crea carpeta fonts/ y mete Montserrat-Bold.ttf ahí.
+    //    Esto ayuda mucho en entornos serverless como Vercel.
     const fontPath = path.join(process.cwd(), "fonts", "Montserrat-Bold.ttf");
     registerFont(fontPath, { family: "Montserrat", weight: "bold" });
 
@@ -27,81 +29,32 @@ module.exports = async (req, res) => {
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext("2d");
 
-    // Fondo: SIEMPRE primero
-    ctx.clearRect(0, 0, img.width, img.height);
-    ctx.drawImage(img, 0, 0, img.width, img.height);
+    // Fondo
+    ctx.drawImage(img, 0, 0);
 
-    // Render texto
+    // Mejor render
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // ====== AJUSTES PRINCIPALES ======
-    // En tu referencia el número va grande y en la parte baja del diamante
-    const FONT_FACTOR = 0.22; // prueba 0.20 - 0.26
-    const Y_FACTOR = 0.62;    // prueba 0.60 - 0.68
+    // Tamaño grande (ajústalo si quieres)
+    const fontSize = Math.floor(img.width * 0.20);
+    ctx.font = `bold ${fontSize}px "Montserrat"`;
 
-    const fontSize = Math.floor(img.width * FONT_FACTOR);
-    ctx.font = `900 ${fontSize}px "Montserrat"`;
-
+    // Posición (un poquito más abajo del centro)
     const x = img.width / 2;
-    const y = img.height * Y_FACTOR;
+    const y = img.height / 2 + Math.floor(img.height * 0.10);
 
-    // ====== ESTILO "ORO" ======
-    // Gradiente vertical (arriba más claro, abajo más oscuro)
-    const gold = ctx.createLinearGradient(0, y - fontSize * 0.9, 0, y + fontSize * 0.9);
-    gold.addColorStop(0.00, "#FFF7C2");
-    gold.addColorStop(0.20, "#FFD45C");
-    gold.addColorStop(0.52, "#F2AE00");
-    gold.addColorStop(0.80, "#B96A00");
-    gold.addColorStop(1.00, "#FFE08A");
-
-    // (1) Borde oscuro exterior (da el look “3D”)
-    ctx.save();
-    ctx.lineJoin = "round";
-    ctx.miterLimit = 2;
-    ctx.lineWidth = Math.max(10, Math.floor(img.width * 0.014));
-    ctx.strokeStyle = "#6A3A00"; // marrón-dorado (mejor que negro puro)
+    // Contorno negro
+    ctx.lineWidth = Math.max(8, Math.floor(img.width * 0.012));
+    ctx.strokeStyle = "#000000";
     ctx.strokeText(numero, x, y);
-    ctx.restore();
 
-    // (2) Glow dorado (brillo afuera)
-    ctx.save();
-    ctx.shadowColor = "rgba(255, 195, 20, 0.9)";
-    ctx.shadowBlur = Math.floor(img.width * 0.02);
-    ctx.lineJoin = "round";
-    ctx.lineWidth = Math.max(5, Math.floor(img.width * 0.007));
-    ctx.strokeStyle = "#FFD86A";
-    ctx.strokeText(numero, x, y);
-    ctx.restore();
-
-    // (3) Relleno dorado
-    ctx.save();
-    ctx.fillStyle = gold;
+    // Relleno blanco
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillText(numero, x, y);
-    ctx.restore();
-
-    // (4) Borde interno claro (bevel / borde brillante)
-    ctx.save();
-    ctx.lineJoin = "round";
-    ctx.lineWidth = Math.max(3, Math.floor(img.width * 0.0045));
-    ctx.strokeStyle = "rgba(255, 245, 200, 0.95)";
-    ctx.strokeText(numero, x, y);
-    ctx.restore();
-
-    // (5) Brillo superior sutil dentro (SIN recortar el fondo)
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.globalCompositeOperation = "screen";
-    const topGlow = ctx.createLinearGradient(0, y - fontSize * 0.9, 0, y);
-    topGlow.addColorStop(0.0, "rgba(255,255,255,0.85)");
-    topGlow.addColorStop(1.0, "rgba(255,255,255,0.0)");
-    ctx.fillStyle = topGlow;
-    // “copia” el texto un pelín hacia arriba para simular highlight
-    ctx.fillText(numero, x, y - Math.floor(fontSize * 0.06));
-    ctx.restore();
 
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "no-store"); // para evitar cache mientras pruebas
     res.status(200).send(canvas.toBuffer("image/png"));
   } catch (e) {
     console.error(e);
