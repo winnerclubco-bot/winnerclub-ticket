@@ -2,20 +2,20 @@ const { createCanvas, loadImage } = require("canvas");
 
 module.exports = async (req, res) => {
   try {
-    // ✅ Lee query params de forma robusta (funciona aunque req.query venga vacío)
-    const url = new URL(req.url, "https://dummy.local");
+    // ✅ Parse robusto del query (sirve en cualquier runtime)
+    const url = new URL(req.url, "http://localhost");
     const raw =
       url.searchParams.get("num") ||
       url.searchParams.get("numero") ||
-      (req.query && (req.query.num || req.query.numero)) ||
       "";
 
-    const num = String(raw).replace(/\D/g, "").slice(0, 4);
-    const numero = num.padStart(4, "0");
+    const clean = String(raw).replace(/\D/g, "").slice(0, 4);
+    const numero = clean.padStart(4, "0");
 
     const baseImageUrl = process.env.BASE_DIAMOND_URL;
     if (!baseImageUrl) {
-      res.status(500).send("Falta BASE_DIAMOND_URL");
+      res.statusCode = 500;
+      res.end("Falta BASE_DIAMOND_URL");
       return;
     }
 
@@ -27,31 +27,25 @@ module.exports = async (req, res) => {
     // Fondo
     ctx.drawImage(img, 0, 0);
 
-    // ✅ (Opcional) un “panel” para que el número se lea MUY bien
-    const panelW = Math.floor(img.width * 0.55);
-    const panelH = Math.floor(img.height * 0.22);
-    const panelX = Math.floor((img.width - panelW) / 2);
-    const panelY = Math.floor((img.height - panelH) / 2);
+    // ✅ (Opcional pero recomendado) tapar placeholder del PNG base con una placa
+    const plateW = img.width * 0.55;
+    const plateH = img.height * 0.18;
+    const plateX = (img.width - plateW) / 2;
+    const plateY = (img.height - plateH) / 2;
 
+    // Placa oscura semi-transparente
     ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath();
-    const r = Math.floor(panelH * 0.25);
-    ctx.moveTo(panelX + r, panelY);
-    ctx.arcTo(panelX + panelW, panelY, panelX + panelW, panelY + panelH, r);
-    ctx.arcTo(panelX + panelW, panelY + panelH, panelX, panelY + panelH, r);
-    ctx.arcTo(panelX, panelY + panelH, panelX, panelY, r);
-    ctx.arcTo(panelX, panelY, panelX + panelW, panelY, r);
-    ctx.closePath();
+    roundRect(ctx, plateX, plateY, plateW, plateH, Math.min(40, plateH / 2));
     ctx.fill();
 
-    // Texto grande centrado
-    const fontSize = Math.floor(img.width * 0.20);
-    ctx.font = `bold ${fontSize}px Arial`;
+    // ✅ Texto grande centrado
+    const fontSize = Math.floor(img.width * 0.18); // ajusta aquí si lo quieres más grande
+    ctx.font = `900 ${fontSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
     // Contorno negro
-    ctx.lineWidth = Math.max(8, Math.floor(img.width * 0.010));
+    ctx.lineWidth = Math.max(8, Math.floor(img.width * 0.01));
     ctx.strokeStyle = "#000000";
     ctx.strokeText(numero, img.width / 2, img.height / 2);
 
@@ -59,11 +53,29 @@ module.exports = async (req, res) => {
     ctx.fillStyle = "#FFFFFF";
     ctx.fillText(numero, img.width / 2, img.height / 2);
 
-    // ✅ Mientras pruebas: NO cache (para que siempre cambie al instante)
+    // ✅ IMPORTANTE: durante pruebas, NO cache
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).send(canvas.toBuffer("image/png"));
+
+    // Debug útil (mira en Network/Headers)
+    res.setHeader("X-Debug-Numero", numero);
+
+    res.statusCode = 200;
+    res.end(canvas.toBuffer("image/png"));
   } catch (e) {
-    res.status(500).send("Error generando imagen");
+    res.statusCode = 500;
+    res.end("Error generando imagen");
   }
 };
+
+// Helper: rectángulo redondeado
+function roundRect(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
