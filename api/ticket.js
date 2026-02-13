@@ -27,112 +27,77 @@ module.exports = async (req, res) => {
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext("2d");
 
-    // Fondo
-    ctx.drawImage(img, 0, 0);
+    // Fondo: SIEMPRE primero
+    ctx.clearRect(0, 0, img.width, img.height);
+    ctx.drawImage(img, 0, 0, img.width, img.height);
 
-    // Mejor render
+    // Render texto
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // =========================
-    // AJUSTES CLAVE (como tu referencia)
-    // - Tamaño más “ancho” y dominante
-    // - Posición más abajo
-    // - Colores dorados + brillo
-    // =========================
+    // ====== AJUSTES PRINCIPALES ======
+    // En tu referencia el número va grande y en la parte baja del diamante
+    const FONT_FACTOR = 0.22; // prueba 0.20 - 0.26
+    const Y_FACTOR = 0.62;    // prueba 0.60 - 0.68
+
+    const fontSize = Math.floor(img.width * FONT_FACTOR);
+    ctx.font = `900 ${fontSize}px "Montserrat"`;
+
     const x = img.width / 2;
-    const y = img.height * 0.66; // más abajo que el centro (similar a la imagen)
+    const y = img.height * Y_FACTOR;
 
-    // Tamaño: en tu ejemplo el número ocupa casi todo el ancho del diamante
-    const fontSize = Math.floor(img.width * 0.30);
-    ctx.font = `bold ${fontSize}px "Montserrat"`;
+    // ====== ESTILO "ORO" ======
+    // Gradiente vertical (arriba más claro, abajo más oscuro)
+    const gold = ctx.createLinearGradient(0, y - fontSize * 0.9, 0, y + fontSize * 0.9);
+    gold.addColorStop(0.00, "#FFF7C2");
+    gold.addColorStop(0.20, "#FFD45C");
+    gold.addColorStop(0.52, "#F2AE00");
+    gold.addColorStop(0.80, "#B96A00");
+    gold.addColorStop(1.00, "#FFE08A");
 
-    // --- Gradiente dorado principal (de arriba a abajo)
-    const g = ctx.createLinearGradient(0, y - fontSize * 0.75, 0, y + fontSize * 0.75);
-    g.addColorStop(0.0, "#FFF6B0");  // highlight superior
-    g.addColorStop(0.22, "#FFD24A"); // oro claro
-    g.addColorStop(0.55, "#F0A800"); // oro medio
-    g.addColorStop(0.80, "#C77A00"); // oro oscuro
-    g.addColorStop(1.0, "#FFE48A");  // rebote de luz abajo
-
-    // --- Contorno oscuro externo (como el borde marcado del ejemplo)
+    // (1) Borde oscuro exterior (da el look “3D”)
     ctx.save();
     ctx.lineJoin = "round";
     ctx.miterLimit = 2;
-
-    const outerStroke = Math.max(10, Math.floor(img.width * 0.018));
-    ctx.lineWidth = outerStroke;
-    ctx.strokeStyle = "#6B3A00"; // marrón oscuro dorado (no negro puro)
+    ctx.lineWidth = Math.max(10, Math.floor(img.width * 0.014));
+    ctx.strokeStyle = "#6A3A00"; // marrón-dorado (mejor que negro puro)
     ctx.strokeText(numero, x, y);
     ctx.restore();
 
-    // --- Brillo externo (glow) dorado
+    // (2) Glow dorado (brillo afuera)
     ctx.save();
-    ctx.shadowColor = "rgba(255, 200, 40, 0.75)";
-    ctx.shadowBlur = Math.floor(img.width * 0.03);
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    // Un stroke fino brillante para dar “neón” dorado
+    ctx.shadowColor = "rgba(255, 195, 20, 0.9)";
+    ctx.shadowBlur = Math.floor(img.width * 0.02);
     ctx.lineJoin = "round";
-    ctx.lineWidth = Math.max(4, Math.floor(img.width * 0.008));
+    ctx.lineWidth = Math.max(5, Math.floor(img.width * 0.007));
     ctx.strokeStyle = "#FFD86A";
     ctx.strokeText(numero, x, y);
     ctx.restore();
 
-    // --- Relleno dorado (principal)
+    // (3) Relleno dorado
     ctx.save();
-    ctx.fillStyle = g;
+    ctx.fillStyle = gold;
     ctx.fillText(numero, x, y);
     ctx.restore();
 
-    // --- Contorno interno claro (bevel / borde iluminado)
+    // (4) Borde interno claro (bevel / borde brillante)
     ctx.save();
     ctx.lineJoin = "round";
-    ctx.lineWidth = Math.max(3, Math.floor(img.width * 0.006));
-    ctx.strokeStyle = "#FFF2B8";
+    ctx.lineWidth = Math.max(3, Math.floor(img.width * 0.0045));
+    ctx.strokeStyle = "rgba(255, 245, 200, 0.95)";
     ctx.strokeText(numero, x, y);
     ctx.restore();
 
-    // --- “Brillo” superior (highlight) dentro del número
-    //     Simula el efecto 3D del ejemplo con un overlay suave
+    // (5) Brillo superior sutil dentro (SIN recortar el fondo)
     ctx.save();
+    ctx.globalAlpha = 0.35;
     ctx.globalCompositeOperation = "screen";
-    const hg = ctx.createLinearGradient(0, y - fontSize * 0.65, 0, y + fontSize * 0.10);
-    hg.addColorStop(0.0, "rgba(255,255,255,0.85)");
-    hg.addColorStop(0.35, "rgba(255,255,255,0.25)");
-    hg.addColorStop(1.0, "rgba(255,255,255,0.00)");
-    ctx.fillStyle = hg;
-
-    // Clip al texto y pinta el highlight dentro
-    ctx.beginPath();
-    ctx.rect(0, 0, img.width, img.height);
-    ctx.clip(); // (canvas) clip global, luego usamos texto como máscara con destination-in
-
-    // Pintamos highlight full, y luego lo recortamos al texto
-    ctx.fillRect(0, 0, img.width, img.height);
-
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.font = `bold ${fontSize}px "Montserrat"`;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(numero, x, y);
-    ctx.restore();
-
-    // --- “Sombra” interna inferior (da profundidad)
-    ctx.save();
-    ctx.globalCompositeOperation = "multiply";
-    const sg = ctx.createLinearGradient(0, y, 0, y + fontSize * 0.75);
-    sg.addColorStop(0.0, "rgba(0,0,0,0.00)");
-    sg.addColorStop(1.0, "rgba(80,40,0,0.35)");
-    ctx.fillStyle = sg;
-
-    // recorta a texto
-    ctx.globalCompositeOperation = "source-over";
-    ctx.fillRect(0, 0, img.width, img.height);
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.font = `bold ${fontSize}px "Montserrat"`;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(numero, x, y);
+    const topGlow = ctx.createLinearGradient(0, y - fontSize * 0.9, 0, y);
+    topGlow.addColorStop(0.0, "rgba(255,255,255,0.85)");
+    topGlow.addColorStop(1.0, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = topGlow;
+    // “copia” el texto un pelín hacia arriba para simular highlight
+    ctx.fillText(numero, x, y - Math.floor(fontSize * 0.06));
     ctx.restore();
 
     res.setHeader("Content-Type", "image/png");
