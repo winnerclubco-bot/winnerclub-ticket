@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/ticket.js": {
+      "maxDuration": 10
+    }
+  }
+}
