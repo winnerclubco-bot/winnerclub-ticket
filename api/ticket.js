@@ -22,53 +22,75 @@ module.exports = async (req, res) => {
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext("2d");
 
-    // 1. Dibujar el diamante de fondo
+    // Fondo
     ctx.drawImage(img, 0, 0);
 
     // Configuración de texto
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Tamaño: En la imagen los números ocupan casi el 50-60% del ancho
-    const fontSize = Math.floor(img.width * 0.28); 
+    // === COMO IMAGEN 1: GRANDE Y CENTRADO ===
+    const fontSize = Math.floor(img.width * 0.28);
     ctx.font = `bold ${fontSize}px "Montserrat"`;
 
-    // Posición: Justo en el centro vertical y horizontal
     const x = img.width / 2;
-    const y = img.height / 2 + Math.floor(img.height * 0.02); // Ajuste leve para equilibrio visual
+    const y = img.height / 2 + Math.floor(img.height * 0.02);
 
-    // --- EFECTO DE ESTILO DORADO ---
-
-    // 2. Borde exterior grueso (Sombra/Relieve oscuro)
+    // === BORDES NÍTIDOS + COLORES COMO IMAGEN 2 ===
     ctx.lineJoin = "round";
-    ctx.lineWidth = fontSize * 0.15; // Borde proporcional al tamaño
-    ctx.strokeStyle = "#432a02"; // Marrón muy oscuro para el relieve
+    ctx.miterLimit = 2;
+
+    // Sombra suave (profundidad sin difuminar bordes)
+    ctx.shadowColor = "rgba(0,0,0,0.28)";
+    ctx.shadowBlur = Math.max(2, Math.floor(img.width * 0.004));
+    ctx.shadowOffsetX = Math.floor(img.width * 0.002);
+    ctx.shadowOffsetY = Math.floor(img.width * 0.003);
+
+    // 1) Borde exterior oscuro (definición)
+    ctx.lineWidth = Math.max(10, Math.floor(fontSize * 0.14));
+    ctx.strokeStyle = "#5b3a06"; // marrón dorado oscuro (menos “negro”)
     ctx.strokeText(numero, x, y);
 
-    // 3. Borde medio (Brillo dorado exterior)
-    ctx.lineWidth = fontSize * 0.10;
-    ctx.strokeStyle = "#dbb101"; // Dorado base
+    // Quitar sombra para que los bordes internos queden limpios
+    ctx.shadowColor = "rgba(0,0,0,0)";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 2) Borde medio dorado (anillo principal como imagen 2)
+    ctx.lineWidth = Math.max(6, Math.floor(fontSize * 0.09));
+    ctx.strokeStyle = "#d2aa2a"; // dorado claro
     ctx.strokeText(numero, x, y);
 
-    // 4. Borde interno fino (Luz blanca/dorada clara)
-    ctx.lineWidth = fontSize * 0.04;
-    ctx.strokeStyle = "#fff2a8"; 
+    // 3) Borde interno claro (brillo)
+    ctx.lineWidth = Math.max(3, Math.floor(fontSize * 0.045));
+    ctx.strokeStyle = "#fff1bf"; // crema/amarillo muy claro
     ctx.strokeText(numero, x, y);
 
-    // 5. Relleno con Degradado Dorado (de arriba a abajo)
-    const gradient = ctx.createLinearGradient(0, y - fontSize / 2, 0, y + fontSize / 2);
-    gradient.addColorStop(0, "#fff5a5"); // Brillo superior
-    gradient.addColorStop(0.2, "#ffcc00"); // Dorado claro
-    gradient.addColorStop(0.5, "#d4a017"); // Dorado medio
-    gradient.addColorStop(1, "#8a6d3b");   // Dorado oscuro/sombra inferior
+    // 4) Relleno (oro claro tipo crema como imagen 2)
+    const gradient = ctx.createLinearGradient(
+      0,
+      y - fontSize / 2,
+      0,
+      y + fontSize / 2
+    );
+    gradient.addColorStop(0.00, "#fff6cf"); // brillo arriba
+    gradient.addColorStop(0.25, "#ffe08a"); // oro claro
+    gradient.addColorStop(0.55, "#f4c64d"); // oro medio suave
+    gradient.addColorStop(1.00, "#d19a20"); // base (sin oscurecer demasiado)
 
     ctx.fillStyle = gradient;
     ctx.fillText(numero, x, y);
 
-    // 6. Opcional: Añadir un brillo extra (Efecto "Glow")
-    ctx.shadowColor = "rgba(255, 230, 0, 0.5)";
-    ctx.shadowBlur = 15;
-    ctx.fillText(numero, x, y);
+    // 5) Bisel sutil (brillo arriba / sombra abajo) SIN blur
+    ctx.lineWidth = Math.max(2, Math.floor(fontSize * 0.02));
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.strokeText(numero, x, y - Math.floor(fontSize * 0.02));
+
+    ctx.strokeStyle = "rgba(90,50,5,0.25)";
+    ctx.strokeText(numero, x, y + Math.floor(fontSize * 0.02));
 
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "no-store");
