@@ -1,6 +1,34 @@
 const { createCanvas, loadImage, registerFont } = require("canvas");
 const path = require("path");
 
+// Función auxiliar para dibujar un destello de luz (lens flare)
+function dibujarDestello(ctx, x, y, radio) {
+  // Brillo central difuminado
+  const gradiente = ctx.createRadialGradient(x, y, 0, x, y, radio);
+  gradiente.addColorStop(0, "rgba(255, 255, 255, 1)");
+  gradiente.addColorStop(0.2, "rgba(255, 235, 120, 0.8)");
+  gradiente.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+  ctx.fillStyle = gradiente;
+  ctx.beginPath();
+  ctx.arc(x, y, radio, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Estrella de 4 puntas
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.beginPath();
+  ctx.moveTo(x, y - radio);
+  ctx.lineTo(x + radio * 0.08, y - radio * 0.15);
+  ctx.lineTo(x + radio, y);
+  ctx.lineTo(x + radio * 0.08, y + radio * 0.15);
+  ctx.lineTo(x, y + radio);
+  ctx.lineTo(x - radio * 0.08, y + radio * 0.15);
+  ctx.lineTo(x - radio, y);
+  ctx.lineTo(x - radio * 0.08, y - radio * 0.15);
+  ctx.closePath();
+  ctx.fill();
+}
+
 module.exports = async (req, res) => {
   try {
     const raw = String(req.query.num ?? req.query.numero ?? "")
@@ -22,75 +50,71 @@ module.exports = async (req, res) => {
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext("2d");
 
-    // Fondo
+    // 1. Dibujar el diamante de fondo
     ctx.drawImage(img, 0, 0);
 
-    // Configuración de texto
+    // 2. Configuración de texto
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    // Cambiamos a "top" para que el texto se dibuje de la coordenada Y hacia abajo
+    ctx.textBaseline = "top"; 
 
-    // === COMO IMAGEN 1: GRANDE Y CENTRADO ===
-    const fontSize = Math.floor(img.width * 0.28);
+    // Tamaño: 10% más grande que el 0.28 anterior (aprox 0.31)
+    const fontSize = Math.floor(img.width * 0.31); 
     ctx.font = `bold ${fontSize}px "Montserrat"`;
 
+    // Posición: Eje X al centro. Eje Y en la línea del diamante (aprox 36% de la altura)
     const x = img.width / 2;
-    const y = img.height / 2 + Math.floor(img.height * 0.02);
+    const y = img.height * 0.36; // Ajusta este 0.36 si necesitas que suba o baje un poco más
 
-    // === BORDES NÍTIDOS + COLORES COMO IMAGEN 2 ===
+    // --- EFECTO DE ESTILO DORADO ---
+
     ctx.lineJoin = "round";
-    ctx.miterLimit = 2;
-
-    // Sombra suave (profundidad sin difuminar bordes)
-    ctx.shadowColor = "rgba(0,0,0,0.28)";
-    ctx.shadowBlur = Math.max(2, Math.floor(img.width * 0.004));
-    ctx.shadowOffsetX = Math.floor(img.width * 0.002);
-    ctx.shadowOffsetY = Math.floor(img.width * 0.003);
-
-    // 1) Borde exterior oscuro (definición)
-    ctx.lineWidth = Math.max(10, Math.floor(fontSize * 0.14));
-    ctx.strokeStyle = "#5b3a06"; // marrón dorado oscuro (menos “negro”)
+    
+    // Borde exterior grueso (Sombra/Relieve oscuro)
+    ctx.lineWidth = fontSize * 0.15;
+    ctx.strokeStyle = "#432a02";
     ctx.strokeText(numero, x, y);
 
-    // Quitar sombra para que los bordes internos queden limpios
-    ctx.shadowColor = "rgba(0,0,0,0)";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    // 2) Borde medio dorado (anillo principal como imagen 2)
-    ctx.lineWidth = Math.max(6, Math.floor(fontSize * 0.09));
-    ctx.strokeStyle = "#d2aa2a"; // dorado claro
+    // Borde medio (Brillo dorado exterior)
+    ctx.lineWidth = fontSize * 0.10;
+    ctx.strokeStyle = "#dbb101";
     ctx.strokeText(numero, x, y);
 
-    // 3) Borde interno claro (brillo)
-    ctx.lineWidth = Math.max(3, Math.floor(fontSize * 0.045));
-    ctx.strokeStyle = "#fff1bf"; // crema/amarillo muy claro
+    // Borde interno fino (Luz blanca/dorada clara)
+    ctx.lineWidth = fontSize * 0.04;
+    ctx.strokeStyle = "#fff2a8"; 
     ctx.strokeText(numero, x, y);
 
-    // 4) Relleno (oro claro tipo crema como imagen 2)
-    const gradient = ctx.createLinearGradient(
-      0,
-      y - fontSize / 2,
-      0,
-      y + fontSize / 2
-    );
-    gradient.addColorStop(0.00, "#fff6cf"); // brillo arriba
-    gradient.addColorStop(0.25, "#ffe08a"); // oro claro
-    gradient.addColorStop(0.55, "#f4c64d"); // oro medio suave
-    gradient.addColorStop(1.00, "#d19a20"); // base (sin oscurecer demasiado)
+    // Relleno con Degradado Dorado (ajustado para top baseline)
+    const gradient = ctx.createLinearGradient(0, y, 0, y + fontSize * 0.8);
+    gradient.addColorStop(0, "#fff5a5"); 
+    gradient.addColorStop(0.2, "#ffcc00");
+    gradient.addColorStop(0.5, "#d4a017");
+    gradient.addColorStop(1, "#8a6d3b");  
 
     ctx.fillStyle = gradient;
+    
+    // Añadir un brillo extra (Efecto "Glow") al relleno
+    ctx.shadowColor = "rgba(255, 230, 0, 0.4)";
+    ctx.shadowBlur = 10;
     ctx.fillText(numero, x, y);
 
-    // 5) Bisel sutil (brillo arriba / sombra abajo) SIN blur
-    ctx.lineWidth = Math.max(2, Math.floor(fontSize * 0.02));
-    ctx.strokeStyle = "rgba(255,255,255,0.45)";
-    ctx.strokeText(numero, x, y - Math.floor(fontSize * 0.02));
+    // Resetear sombra para los destellos
+    ctx.shadowBlur = 0;
 
-    ctx.strokeStyle = "rgba(90,50,5,0.25)";
-    ctx.strokeText(numero, x, y + Math.floor(fontSize * 0.02));
+    // --- DESTELLOS DE LUZ (LENS FLARES) ---
+    // Calculamos el ancho del texto para colocar los destellos en las esquinas
+    const textWidth = ctx.measureText(numero).width;
+    const textHeight = fontSize * 0.75; // Altura aproximada del texto en mayúsculas/números
+
+    // Destello 1: Esquina superior izquierda
+    dibujarDestello(ctx, x - textWidth / 2 + fontSize * 0.05, y + fontSize * 0.05, fontSize * 0.25);
+    
+    // Destello 2: Esquina inferior derecha
+    dibujarDestello(ctx, x + textWidth / 2 - fontSize * 0.05, y + textHeight - fontSize * 0.05, fontSize * 0.3);
+    
+    // Destello 3: Uno pequeño extra en el medio/arriba para más magia
+    dibujarDestello(ctx, x, y + fontSize * 0.1, fontSize * 0.15);
 
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "no-store");
