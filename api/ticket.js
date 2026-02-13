@@ -54,22 +54,24 @@ module.exports = async (req, res) => {
     ctx.drawImage(img, 0, 0);
 
     // 2. Configuración de texto
+    // Centrado horizontal garantizado
     ctx.textAlign = "center";
-    // Cambiamos a "top" para que el texto se dibuje de la coordenada Y hacia abajo
-    ctx.textBaseline = "top"; 
+    ctx.textBaseline = "top";
 
-    // Tamaño: 10% más grande que el 0.28 anterior (aprox 0.31)
-    const fontSize = Math.floor(img.width * 0.31); 
+    // 15% más grande (antes 0.31)
+    const fontSize = Math.floor(img.width * 0.31 * 1.15);
     ctx.font = `bold ${fontSize}px "Montserrat"`;
 
-    // Posición: Eje X al centro. Eje Y en la línea del diamante (aprox 36% de la altura)
+    // Posición X al centro del canvas
     const x = img.width / 2;
-    const y = img.height * 0.36; // Ajusta este 0.36 si necesitas que suba o baje un poco más
+
+    // Mantengo tu Y igual
+    const y = img.height * 0.36;
 
     // --- EFECTO DE ESTILO DORADO ---
 
     ctx.lineJoin = "round";
-    
+
     // Borde exterior grueso (Sombra/Relieve oscuro)
     ctx.lineWidth = fontSize * 0.15;
     ctx.strokeStyle = "#432a02";
@@ -82,18 +84,18 @@ module.exports = async (req, res) => {
 
     // Borde interno fino (Luz blanca/dorada clara)
     ctx.lineWidth = fontSize * 0.04;
-    ctx.strokeStyle = "#fff2a8"; 
+    ctx.strokeStyle = "#fff2a8";
     ctx.strokeText(numero, x, y);
 
     // Relleno con Degradado Dorado (ajustado para top baseline)
     const gradient = ctx.createLinearGradient(0, y, 0, y + fontSize * 0.8);
-    gradient.addColorStop(0, "#fff5a5"); 
+    gradient.addColorStop(0, "#fff5a5");
     gradient.addColorStop(0.2, "#ffcc00");
     gradient.addColorStop(0.5, "#d4a017");
-    gradient.addColorStop(1, "#8a6d3b");  
+    gradient.addColorStop(1, "#8a6d3b");
 
     ctx.fillStyle = gradient;
-    
+
     // Añadir un brillo extra (Efecto "Glow") al relleno
     ctx.shadowColor = "rgba(255, 230, 0, 0.4)";
     ctx.shadowBlur = 10;
@@ -103,16 +105,25 @@ module.exports = async (req, res) => {
     ctx.shadowBlur = 0;
 
     // --- DESTELLOS DE LUZ (LENS FLARES) ---
-    // Calculamos el ancho del texto para colocar los destellos en las esquinas
     const textWidth = ctx.measureText(numero).width;
-    const textHeight = fontSize * 0.75; // Altura aproximada del texto en mayúsculas/números
+    const textHeight = fontSize * 0.75;
 
     // Destello 1: Esquina superior izquierda
-    dibujarDestello(ctx, x - textWidth / 2 + fontSize * 0.05, y + fontSize * 0.05, fontSize * 0.25);
-    
+    dibujarDestello(
+      ctx,
+      x - textWidth / 2 + fontSize * 0.05,
+      y + fontSize * 0.05,
+      fontSize * 0.25
+    );
+
     // Destello 2: Esquina inferior derecha
-    dibujarDestello(ctx, x + textWidth / 2 - fontSize * 0.05, y + textHeight - fontSize * 0.05, fontSize * 0.3);
-    
+    dibujarDestello(
+      ctx,
+      x + textWidth / 2 - fontSize * 0.05,
+      y + textHeight - fontSize * 0.05,
+      fontSize * 0.3
+    );
+
     // Destello 3: Uno pequeño extra en el medio/arriba para más magia
     dibujarDestello(ctx, x, y + fontSize * 0.1, fontSize * 0.15);
 
