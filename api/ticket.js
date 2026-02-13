@@ -3,75 +3,115 @@ const path = require("path");
 
 module.exports = async (req, res) => {
   try {
-    const raw = String(req.query.num ?? req.query.numero ?? "")
-      .replace(/\D/g, "")
-      .slice(0, 4);
+    // 1) Lee num o numero
+    const raw =
+      String(req.query.num ?? req.query.numero ?? "")
+        .replace(/\D/g, "")
+        .slice(0, 4);
 
     const numero = raw.padStart(4, "0");
 
+    // 2) URL del fondo (diamante)
     const baseImageUrl = process.env.BASE_DIAMOND_URL;
     if (!baseImageUrl) {
       res.status(500).send("Falta BASE_DIAMOND_URL");
       return;
     }
 
+    // 3) (Clave) Forzar fontconfig a usar fuentes del proyecto
     const fontPath = path.join(process.cwd(), "fonts", "Montserrat-Bold.ttf");
     registerFont(fontPath, { family: "Montserrat", weight: "bold" });
 
     const img = await loadImage(baseImageUrl);
+
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext("2d");
 
-    // 1. Dibujar el diamante de fondo
+    // Fondo
     ctx.drawImage(img, 0, 0);
 
-    // Configuración de texto
+    // Mejor render
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Tamaño: En la imagen los números ocupan casi el 50-60% del ancho
-    const fontSize = Math.floor(img.width * 0.28); 
+    // Tamaño grande (ajústalo si quieres)
+    const fontSize = Math.floor(img.width * 0.20);
     ctx.font = `bold ${fontSize}px "Montserrat"`;
 
-    // Posición: Justo en el centro vertical y horizontal
+    // Posición (un poquito más abajo del centro)
     const x = img.width / 2;
-    const y = img.height / 2 + Math.floor(img.height * 0.02); // Ajuste leve para equilibrio visual
+    const y = img.height / 2 + Math.floor(img.height * 0.10);
 
-    // --- EFECTO DE ESTILO DORADO ---
+    // --- ESTILO DORADO COMO LA IMAGEN (bordes + color) ---
 
-    // 2. Borde exterior grueso (Sombra/Relieve oscuro)
     ctx.lineJoin = "round";
-    ctx.lineWidth = fontSize * 0.15; // Borde proporcional al tamaño
-    ctx.strokeStyle = "#432a02"; // Marrón muy oscuro para el relieve
+    ctx.miterLimit = 2;
+
+    // 1) Borde exterior oscuro (tipo dorado profundo)
+    const outerLW = Math.max(16, Math.floor(img.width * 0.020));
+    ctx.lineWidth = outerLW;
+    ctx.strokeStyle = "#7a4a00"; // dorado oscuro/marrón
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = Math.max(6, Math.floor(img.width * 0.010));
+    ctx.shadowOffsetX = Math.floor(img.width * 0.002);
+    ctx.shadowOffsetY = Math.floor(img.width * 0.002);
     ctx.strokeText(numero, x, y);
 
-    // 3. Borde medio (Brillo dorado exterior)
-    ctx.lineWidth = fontSize * 0.10;
-    ctx.strokeStyle = "#dbb101"; // Dorado base
+    // 2) Borde interior brillante (casi blanco/amarillo)
+    ctx.shadowColor = "rgba(0,0,0,0)";
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(6, Math.floor(outerLW * 0.45));
+    ctx.strokeStyle = "#fff2b0"; // brillo dorado claro
     ctx.strokeText(numero, x, y);
 
-    // 4. Borde interno fino (Luz blanca/dorada clara)
-    ctx.lineWidth = fontSize * 0.04;
-    ctx.strokeStyle = "#fff2a8"; 
-    ctx.strokeText(numero, x, y);
+    // 3) Relleno con gradiente metálico dorado
+    const metrics = ctx.measureText(numero);
+    const textW = metrics.width;
+    const textH = fontSize;
 
-    // 5. Relleno con Degradado Dorado (de arriba a abajo)
-    const gradient = ctx.createLinearGradient(0, y - fontSize / 2, 0, y + fontSize / 2);
-    gradient.addColorStop(0, "#fff5a5"); // Brillo superior
-    gradient.addColorStop(0.2, "#ffcc00"); // Dorado claro
-    gradient.addColorStop(0.5, "#d4a017"); // Dorado medio
-    gradient.addColorStop(1, "#8a6d3b");   // Dorado oscuro/sombra inferior
+    const grad = ctx.createLinearGradient(
+      x - textW / 2,
+      y - textH / 2,
+      x + textW / 2,
+      y + textH / 2
+    );
 
-    ctx.fillStyle = gradient;
+    // Paradas para look “oro” (luz -> medio -> sombra -> brillo)
+    grad.addColorStop(0.00, "#fff6c9");
+    grad.addColorStop(0.18, "#ffd86b");
+    grad.addColorStop(0.42, "#ffb300");
+    grad.addColorStop(0.62, "#d48700");
+    grad.addColorStop(0.82, "#ffe07a");
+    grad.addColorStop(1.00, "#fff4c2");
+
+    // Glow suave como destello
+    ctx.fillStyle = grad;
+    ctx.shadowColor = "rgba(255, 215, 90, 0.55)";
+    ctx.shadowBlur = Math.max(10, Math.floor(img.width * 0.016));
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     ctx.fillText(numero, x, y);
 
-    // 6. Opcional: Añadir un brillo extra (Efecto "Glow")
-    ctx.shadowColor = "rgba(255, 230, 0, 0.5)";
-    ctx.shadowBlur = 15;
-    ctx.fillText(numero, x, y);
+    // 4) “Bisel” sutil (highlight interno arriba / sombra interna abajo)
+    //    (se logra con un stroke fino encima y otro debajo cambiando ligeramente el y)
+    ctx.shadowColor = "rgba(0,0,0,0)";
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(2, Math.floor(img.width * 0.004));
+
+    // highlight arriba
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.strokeText(numero, x, y - Math.floor(fontSize * 0.02));
+
+    // sombra abajo
+    ctx.strokeStyle = "rgba(120,60,0,0.35)";
+    ctx.strokeText(numero, x, y + Math.floor(fontSize * 0.02));
+
+    // --- FIN ESTILO ---
 
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "no-store"); // para evitar cache mientras pruebas
     res.status(200).send(canvas.toBuffer("image/png"));
   } catch (e) {
     console.error(e);
