@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     ctx.textBaseline = "middle";
 
     // Tamaño: En la imagen los números ocupan casi el 50-60% del ancho
-    const fontSize = Math.floor(img.width * 0.28); 
+    const fontSize = Math.floor(img.width * 0.40); 
     ctx.font = `bold ${fontSize}px "Montserrat"`;
 
     // Posición: Justo en el centro vertical y horizontal
@@ -78,3 +78,4 @@ module.exports = async (req, res) => {
     res.status(500).send("Error generando imagen");
   }
 };
+
