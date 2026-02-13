@@ -2,6 +2,9 @@
   "name": "winnerclub-ticket",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "canvas": "^2.11.2"
   }
