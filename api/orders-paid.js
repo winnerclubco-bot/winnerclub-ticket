@@ -75,14 +75,35 @@ function countDiamondsFromOrder(order) {
   let count = 0;
 
   for (const it of items) {
+    // Evitar contar si algún día alguien compra el producto contador (por si acaso)
+    const title = String(it?.title || "");
+    if (title.toLowerCase().includes("contador rifa")) continue;
+
     const props = propsToMap(it.properties);
-    const isRifa =
+    const hasDiamanteProp =
       Object.prototype.hasOwnProperty.call(props, "Diamante") ||
       Object.prototype.hasOwnProperty.call(props, "Número") ||
       Object.prototype.hasOwnProperty.call(props, "Numero");
 
-    if (isRifa) count += Number(it.quantity || 0);
+    // Caso ideal: pedido viene de tu página (tiene properties)
+    if (hasDiamanteProp) {
+      count += Number(it.quantity || 0);
+      continue;
+    }
+
+    // Fallback: pedidos creados en Admin (sin properties)
+    const sku = String(it?.sku || "");
+    const vendor = String(it?.vendor || "");
+    const looksLikeRaffle =
+      sku.includes("RIFA-") ||
+      title.includes("Números") ||
+      vendor.toLowerCase().includes("winner club");
+
+    if (looksLikeRaffle) {
+      count += Number(it.quantity || 0);
+    }
   }
+
   return count;
 }
 
